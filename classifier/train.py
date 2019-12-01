@@ -63,7 +63,7 @@ def main(model_name: str):
             net, val_loader, "TestAcc"
         )
         scheduler.step(test_accuracy)
-    calculate_accuracy(net, final_loader, "HoldoutAcc")
+    calculate_accuracy(net, final_loader, "HoldoutAcc", writer)
     save_model_results(
         net, output_model, {"labels": all_labels, "preds": all_preds, "paths": all_data}
     )
@@ -75,7 +75,7 @@ def save_model_results(net, output_model, output_metadata):
     pickle.dump(open(output_model + ".preds.pkl", "wb"), output_metadata)
 
 
-def calculate_accuracy(net, loader, accuracy_label):
+def calculate_accuracy(net, loader, accuracy_label, writer):
     with torch.no_grad():
         net.eval()
         correct = 0.0
