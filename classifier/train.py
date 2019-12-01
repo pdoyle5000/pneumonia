@@ -60,7 +60,7 @@ def main(model_name: str):
                 running_loss = 0.0
 
         all_labels, all_preds, all_metadata = calculate_accuracy(
-            net, val_loader, "TestAcc"
+            net, val_loader, "TestAcc", writer
         )
         scheduler.step(test_accuracy)
     calculate_accuracy(net, final_loader, "HoldoutAcc", writer)
