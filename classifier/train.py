@@ -59,7 +59,7 @@ def main(model_name: str):
                 train_iter += 1
                 running_loss = 0.0
 
-        all_labels, all_preds, all_metadata = calculate_accuracy(
+        all_labels, all_preds, all_metadata, test_accuracy = calculate_accuracy(
             net, val_loader, "TestAcc", writer, epoch
         )
         scheduler.step(test_accuracy)
@@ -99,7 +99,7 @@ def calculate_accuracy(net, loader, accuracy_label, writer, epoch):
     print(f"Test Accuracy:\t{test_accuracy}")
     writer.add_scalar(accuracy_label, test_accuracy, epoch)
     print(f"Correct:\t{correct}, Incorrect:\t{total-correct}")
-    return all_labels, all_preds, all_data
+    return all_labels, all_preds, all_data, test_accuracy
 
 
 if __name__ == "__main__":
