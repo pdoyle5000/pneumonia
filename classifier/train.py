@@ -65,7 +65,7 @@ def main(model_name: str):
         scheduler.step(test_accuracy)
     calculate_accuracy(net, final_loader, "HoldoutAcc", writer, epoch)
     save_model_results(
-        net, output_model, {"labels": all_labels, "preds": all_preds, "paths": all_data}
+        net, output_model, {"labels": all_labels, "preds": all_preds, "metadata": all_metadata}
     )
 
 
