@@ -37,7 +37,7 @@ def main(model_name: str):
         net.parameters(), lr=1e-2, momentum=0.9, weight_decay=5e-4
     )
     scheduler = ReduceLROnPlateau(
-        optimizer, factor=0.3, mode="max", verbose=True, patience=10
+        optimizer, factor=0.3, mode="max", verbose=True, patience=15
     )
 
     # Training Loop
