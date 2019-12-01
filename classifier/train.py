@@ -31,7 +31,7 @@ def main(model_name: str):
     # Init network, loss and optimizer
     net = SimpleNet(1).cuda()
 
-    # There are twice as many pneumonias as normal, offset the bias in the loss.
+    # There are twice as much pneumonia as healthy, offset the bias in the loss.
     criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(0.5))
     optimizer = optim.SGD(
         net.parameters(), lr=1e-2, momentum=0.9, weight_decay=5e-4
@@ -84,7 +84,7 @@ def calculate_accuracy(net, loader, accuracy_label):
         all_labels = []
         all_preds = []
         all_data = []
-        for inputs, labels, metadata in val_loader:
+        for inputs, labels, metadata in loader:
             outputs = net(inputs.float().cuda())
             sigmoid = torch.nn.Sigmoid()
             preds = sigmoid(outputs)
