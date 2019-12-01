@@ -32,7 +32,7 @@ def main(model_name: str):
     net = SimpleNet(1).cuda()
 
     # There are twice as much pneumonia as healthy, offset the bias in the loss.
-    criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(0.5))
+    criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(0.25))
     optimizer = optim.SGD(
         net.parameters(), lr=1e-2, momentum=0.9, weight_decay=5e-4
     )
