@@ -1,4 +1,5 @@
 import sys
+from typing import Optional
 import numpy as np
 import torch
 from dataset import PneumoniaDataset, SetType
@@ -12,95 +13,134 @@ import torch.nn as nn
 import pickle
 
 
-def main(model_name: str):
-    output_model = "models/" + model_name + ".pth"
-    writer = SummaryWriter()
-
-    # Init datasets and loaders
-    train_set = PneumoniaDataset(SetType.train)
-    val_set = PneumoniaDataset(SetType.test, shuffle=False)  # for now.
-    final_check_set = PneumoniaDataset(SetType.val, shuffle=False)  # for now.
-    train_loader = DataLoader(train_set, batch_size=16, shuffle=True, num_workers=8)
-    val_loader = DataLoader(val_set, batch_size=16, shuffle=False, num_workers=8)
-    final_loader = DataLoader(
-        final_check_set, batch_size=16, shuffle=False, num_workers=8
-    )
-    for dataset in [train_set, val_set, final_check_set]:
-        print(f"Size of {dataset.set_type} set: {len(dataset)}")
-
-    # Init network, loss and optimizer
-    net = SimpleNet(1).cuda()
-
-    # There are twice as much pneumonia as healthy, offset the bias in the loss.
-    criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(0.25))
-    optimizer = optim.SGD(
-        net.parameters(), lr=1e-2, momentum=0.9, weight_decay=5e-4
-    )
-    scheduler = ReduceLROnPlateau(
-        optimizer, factor=0.3, mode="max", verbose=True, patience=15
-    )
-
-    # Training Loop
-    train_iter = 0
-    for epoch in range(100):
-        running_loss = 0.0
-        for i, (inputs, labels, metadata) in enumerate(train_loader):
-            net.train()
-            optimizer.zero_grad()
-            outputs = net(inputs.float().cuda())
-            loss = criterion(outputs, labels.unsqueeze(1).float().cuda())
-            loss.backward()
-            optimizer.step()
-
-            running_loss += loss.item()
-            if i > 0 and (i) % 100 == 0:
-                print("[%d, %5d] loss %.3f" % (epoch, i, running_loss / 100))
-                writer.add_scalar("TrainLoss", (running_loss / 100), train_iter)
-                train_iter += 1
-                running_loss = 0.0
-
-        all_labels, all_preds, all_metadata, test_accuracy = calculate_accuracy(
-            net, val_loader, "TestAcc", writer, epoch
+class PneumoniaTrainer:
+    def __init__(
+        self, model_name: str, epochs: int = 100, config: Optional[dict] = None
+    ):
+        self.output_model = model_name + ".pth"
+        self.writer = SummaryWriter()
+        self.train_set = PneumoniaDataset(SetType.train)
+        self.train_loader = DataLoader(
+            PneumoniaDataset(SetType.train), batch_size=16, shuffle=True, num_workers=8
         )
-        scheduler.step(test_accuracy)
-    calculate_accuracy(net, final_loader, "HoldoutAcc", writer, epoch)
-    save_model_results(
-        net, output_model, {"labels": all_labels, "preds": all_preds, "metadata": all_metadata}
-    )
+        self.val_loader = DataLoader(
+            PneumoniaDataset(SetType.val, shuffle=False),
+            batch_size=16,
+            shuffle=False,
+            num_workers=8,
+        )
+        self.test_loader = DataLoader(
+            PneumoniaDataset(SetType.test, shuffle=False),
+            batch_size=16,
+            shuffle=False,
+            num_workers=8,
+        )
+        self.config = {
+            "pos_weight_bias": 0.5,
+            "starting_lr": 1e-2,
+            "momentum": 0.9,
+            "decay": 5e-4,
+            "lr_adjustment_factor": 0.3,
+            "scheduler_patience": 15,
+            "print_cadence": 100,
+        }
+
+        self.epochs = epochs
+        self.device = torch.device("cuda:0")
+        self.net = SimpleNet(1).to(self.device)
+        self.criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(0.5))
+        self.optimizer = optim.SGD(
+            self.net.parameters(),
+            lr=self.config["starting_lr"],
+            momentum=self.config["momentum"],
+            weight_decay=self.config["decay"],
+        )
+        self.scheduler = ReduceLROnPlateau(
+            self.optimizer,
+            factor=self.config["lr_adjustment_factor"],
+            mode="max",
+            verbose=True,
+            patience=self.config["scheduler_patience"],
+        )
+
+        print("Trainer Initialized.")
+        for dataset in [self.train_loader, self.test_loader, self.val_loader]:
+            print(f"Size of set: {len(dataset)}")
+
+    def train(self):
+        training_pass = 0
+        for epoch in range(self.epochs):
+            running_loss = 0.0
+            for i, (inputs, labels, metadata) in enumerate(self.train_loader):
+                self.net.train()
+                self.optimizer.zero_grad()
+                outputs = self.net(inputs.float().to(self.device))
+                loss = self.criterion(
+                    outputs, labels.unsqueeze(1).float().to(self.device)
+                )
+                loss.backward()
+                self.optimizer.step()
+                running_loss += loss.item()
+                if i > 0 and i % self.config["print_cadence"] == 0:
+                    print(
+                        f'Epoch: {epoch}\tBatch: {i}\tLoss: {running_loss / self.config["print_cadence"]}'
+                    )
+                    self.writer.add_scalar(
+                        "Train/RunningLoss",
+                        running_loss / self.config["print_cadence"],
+                        training_pass,
+                    )
+                    running_loss = 0.0
+                training_pass += 1
+            train_accuracy = self.log_training_metrics(epoch)
+            self.log_validation_metrics(epoch)
+            self.scheduler.step(train_accuracy)
+        accuracy = self.calculate_accuracy(self.test_loader)
+        self.writer.add_text("Test/Accuracy", f"{accuracy}")
+        self.save_model()
+
+    def log_training_metrics(self, epoch: int):
+        accuracy = self.calculate_accuracy(self.train_loader)
+        self.writer.add_scalar(f"Train/Accuracy", accuracy, epoch)
+        return accuracy
+
+    def log_validation_metrics(self, epoch: int):
+        # ROC curves and cam grad activations.
+        accuracy = self.calculate_accuracy(self.val_loader)
+        self.writer.add_scalar(f"Validation/Accuracy", accuracy, epoch)
+        return accuracy
+
+    def calculate_accuracy(self, loader: DataLoader):
+        with torch.no_grad():
+            self.net.eval()
+            correct = 0.0
+            total = 0.0
+            for inputs, labels, metadata in loader:
+                outputs = self.net(inputs.float().to(self.device))
+                sigmoid = torch.nn.Sigmoid()
+                preds = sigmoid(outputs)
+
+                # possibly change the .5 thrshold from .round to something else
+                # pull into a predict function to be applied everywhere.
+                # after a completed model, pull this into a notebook and find the
+                # most sensible threshold.
+                preds = np.round(preds.cpu().squeeze(1))
+                total += labels.size(0)
+                correct += preds.eq(labels.float()).sum().item()
+            test_accuracy = correct / total
+        print(f"Correct:\t{correct}, Incorrect:\t{total-correct}")
+        return test_accuracy
+
+    def save_model(self):
+        print("saving...")
+        torch.save(self.net.state_dict(), self.output_model)
 
 
-def save_model_results(net, output_model, output_metadata):
-    print("saving...")
-    torch.save(net.state_dict(), output_model)
-    pickle.dump(open(output_model + ".preds.pkl", "wb"), output_metadata)
-
-
-def calculate_accuracy(net, loader, accuracy_label, writer, epoch):
-    with torch.no_grad():
-        net.eval()
-        correct = 0.0
-        total = 0.0
-        i = 0.0
-        all_labels = []
-        all_preds = []
-        all_data = []
-        for inputs, labels, metadata in loader:
-            outputs = net(inputs.float().cuda())
-            sigmoid = torch.nn.Sigmoid()
-            preds = sigmoid(outputs)
-            preds = np.round(preds.cpu().squeeze(1))
-            total += labels.size(0)
-            correct += preds.eq(labels.float()).sum().item()
-            i += 1
-            all_labels.append(labels)
-            all_preds.append(outputs)
-            all_data.append(metadata)
-        test_accuracy = correct / total
-    print(f"Test Accuracy:\t{test_accuracy}")
-    writer.add_scalar(accuracy_label, test_accuracy, epoch)
-    print(f"Correct:\t{correct}, Incorrect:\t{total-correct}")
-    return all_labels, all_preds, all_data, test_accuracy
+# create test, train, validation calcs for accuracy. print training loss.
+# post cm.ravel() metrics to tensorboard at the end
+# post test images with activations (cmgrad, torchray) for each validation.
 
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    trainer = PneumoniaTrainer(sys.argv[1], 200)
+    trainer.train()

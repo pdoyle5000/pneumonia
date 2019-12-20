@@ -12,7 +12,7 @@ from enum import Enum, unique
 import random
 
 
-BASE_IMAGE_DIR = "/ssd/datasets/chest_xray"
+BASE_IMAGE_DIR = "/home/pdoyle/ssd/datasets/chest_xray"
 DIMS = (256, 256)
 
 

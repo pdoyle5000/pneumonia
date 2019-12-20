@@ -11,6 +11,14 @@ def simple_layer(c_in, c_out, kernel):
     )
 
 
+def simple_sigmoid_layer(c_in, c_out, kernel):
+    return nn.Sequential(
+        nn.Conv2d(c_in, c_out, kernel, padding=(1, 1), stride=(1, 1)),
+        nn.BatchNorm2d(c_out, eps=1e-05, momentum=0.05, affine=True),
+        nn.Sigmoid(inplace=True),
+    )
+
+
 def simple_layer_w_pool(c_in, c_out, kernel, pool_kernel):
     return nn.Sequential(
         nn.Conv2d(c_in, c_out, kernel, padding=(1, 1), stride=(1, 1)),
@@ -25,6 +33,8 @@ def simple_layer_w_pool(c_in, c_out, kernel, pool_kernel):
 class SimpleNet(nn.Module):
     def __init__(self, num_classes):
         super(SimpleNet, self).__init__()
+        # consider sigmoid activation for the first layer.
+        # consider a wider network as well.
         self.conv1 = simple_layer(1, 64, 3)
         self.conv2 = simple_layer(64, 128, 3)
         self.conv3 = simple_layer(128, 128, 3)
