@@ -11,11 +11,10 @@ def simple_layer(c_in, c_out, kernel):
     )
 
 
-def simple_sigmoid_layer(c_in, c_out, kernel):
+def simple_sigmoid_layer(in_features, out_features):
     return nn.Sequential(
-        nn.Conv2d(c_in, c_out, kernel, padding=(1, 1), stride=(1, 1)),
-        nn.BatchNorm2d(c_out, eps=1e-05, momentum=0.05, affine=True),
-        nn.Sigmoid(inplace=True),
+        nn.Linear(in_features, out_features),
+        nn.Sigmoid(),
     )
 
 
@@ -33,8 +32,6 @@ def simple_layer_w_pool(c_in, c_out, kernel, pool_kernel):
 class SimpleNet(nn.Module):
     def __init__(self, num_classes):
         super(SimpleNet, self).__init__()
-        # consider sigmoid activation for the first layer.
-        # consider a wider network as well.
         self.conv1 = simple_layer(1, 64, 3)
         self.conv2 = simple_layer(64, 128, 3)
         self.conv3 = simple_layer(128, 128, 3)
@@ -46,8 +43,10 @@ class SimpleNet(nn.Module):
         self.conv9 = simple_layer_w_pool(256, 256, 3, 2)
         self.conv10 = simple_layer_w_pool(256, 512, 3, 2)
         self.conv11 = simple_layer(512, 2048, 1)
-        self.conv12 = simple_layer_w_pool(2048, 256, 1, 2)
-        self.conv13 = simple_layer(256, 256, 3)
+        # self.conv12 = simple_layer_w_pool(2048, 256, 1, 2)
+        self.conv12 = simple_layer_w_pool(2048, 1024, 1, 2)
+        # self.conv13 = simple_layer(256, 256, 3)
+        self.largefc = nn.Linear(1024, 256)
         self.dense = nn.Linear(256, num_classes)
 
     def forward(self, x):
@@ -63,9 +62,9 @@ class SimpleNet(nn.Module):
         out = self.conv10(out)
         out = self.conv11(out)
         out = self.conv12(out)
-        out = self.conv13(out)
         out = F.max_pool2d(out, kernel_size=out.size()[2:])
         out = F.dropout2d(out, 0.1, training=True)
         out = out.view(out.size(0), -1)
+        out = self.largefc(out)
         out = self.dense(out)
         return out
