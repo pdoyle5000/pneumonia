@@ -16,7 +16,7 @@ BASE_IMAGE_DIR = "/home/pdoyle/ssd/datasets/chest_xray"
 DIMS = (256, 256)
 
 
-def train_composer(dims, stddev, mean):
+def train_composer(dims: Tuple[int, int], stddev: float, mean: float):
     return transforms.Compose(
         [
             transforms.Resize(dims, interpolation=NEAREST),
@@ -30,7 +30,7 @@ def train_composer(dims, stddev, mean):
     )
 
 
-def inference_composer(dims, stddev, mean):
+def inference_composer(dims: Tuple[int, int], stddev: float, mean: float):
     return transforms.Compose(
         [
             transforms.Resize(dims, interpolation=NEAREST),
@@ -57,7 +57,7 @@ class PneumoniaDataset(Dataset):
     def __len__(self):
         return len(self.metadata)
 
-    def __getitem__(self, idx: int) -> Tuple[torch.tensor, int, dict]:
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, int, dict]:
         image = Image.open(
             os.path.join(self.base_dir, self.metadata[idx]["image"])
         ).convert("L")

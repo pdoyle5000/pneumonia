@@ -11,13 +11,6 @@ def simple_layer(c_in, c_out, kernel):
     )
 
 
-def simple_sigmoid_layer(in_features, out_features):
-    return nn.Sequential(
-        nn.Linear(in_features, out_features),
-        nn.Sigmoid(),
-    )
-
-
 def simple_layer_w_pool(c_in, c_out, kernel, pool_kernel):
     return nn.Sequential(
         nn.Conv2d(c_in, c_out, kernel, padding=(1, 1), stride=(1, 1)),
@@ -43,14 +36,13 @@ class SimpleNet(nn.Module):
         self.conv9 = simple_layer_w_pool(256, 256, 3, 2)
         self.conv10 = simple_layer_w_pool(256, 512, 3, 2)
         self.conv11 = simple_layer(512, 2048, 1)
-        # self.conv12 = simple_layer_w_pool(2048, 256, 1, 2)
         self.conv12 = simple_layer_w_pool(2048, 1024, 1, 2)
-        # self.conv13 = simple_layer(256, 256, 3)
         self.largefc = nn.Linear(1024, 256)
         self.dense = nn.Linear(256, num_classes)
 
     def forward(self, x):
-        out = self.conv1(x)
+        out = self.conv0(x)
+        out = self.conv1(out)
         out = self.conv2(out)
         out = self.conv3(out)
         out = self.conv4(out)

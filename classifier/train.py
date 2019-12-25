@@ -1,5 +1,5 @@
 import sys
-from typing import Optional
+from typing import Optional, List
 import numpy as np
 import torch
 from dataset import PneumoniaDataset, SetType
@@ -42,7 +42,7 @@ class PneumoniaTrainer:
             "lr_adjustment_factor": 0.3,
             "scheduler_patience": 15,
             "print_cadence": 100,
-            "comment": "Added large FC layer.",
+            "comment": "Added large dense layer.",
             "pos_weight": 1341 / 3875,  # Number of negatives / positives.
         }
 
@@ -55,16 +55,16 @@ class PneumoniaTrainer:
         )
         self.optimizer = optim.SGD(
             self.net.parameters(),
-            lr=self.config["starting_lr"],
-            momentum=self.config["momentum"],
-            weight_decay=self.config["decay"],
-        )
+            lr=self.config["starting_lr"],  # type: ignore
+            momentum=self.config["momentum"],  # type: ignore
+            weight_decay=self.config["decay"],  # type: ignore
+            )
         self.scheduler = ReduceLROnPlateau(
             self.optimizer,
-            factor=self.config["lr_adjustment_factor"],
+            factor=self.config["lr_adjustment_factor"],  # type: ignore
             mode="max",
             verbose=True,
-            patience=self.config["scheduler_patience"],
+            patience=self.config["scheduler_patience"],  # type: ignore
         )
 
         print("Trainer Initialized.")
@@ -86,12 +86,13 @@ class PneumoniaTrainer:
                 self.optimizer.step()
                 running_loss += loss.item()
                 if i > 0 and i % self.config["print_cadence"] == 0:
+                    mean_loss = running_loss / self.config["print_cadence"]
                     print(
-                        f'Epoch: {epoch}\tBatch: {i}\tLoss: {running_loss / self.config["print_cadence"]}'
+                        f'Epoch: {epoch}\tBatch: {i}\tLoss: {mean_loss}'
                     )
                     self.writer.add_scalar(
                         "Train/RunningLoss",
-                        running_loss / self.config["print_cadence"],
+                        mean_loss,
                         training_pass,
                     )
                     running_loss = 0.0
@@ -120,8 +121,8 @@ class PneumoniaTrainer:
         return accuracy
 
     def calculate_accuracy(self, loader: DataLoader):
-        truth_list = []
-        pred_list = []
+        truth_list: list = []
+        pred_list: list = []
         with torch.no_grad():
             self.net.eval()
             correct = 0.0
@@ -131,7 +132,7 @@ class PneumoniaTrainer:
                 sigmoid = torch.nn.Sigmoid()
                 preds = sigmoid(outputs)
                 preds = np.round(preds.detach().cpu().squeeze(1))
-                pred_list.extend(preds)
+                pred_list.extend(preds)  # type: ignore
                 truth_list.extend(labels)
                 total += labels.size(0)
                 correct += preds.eq(labels.float()).sum().item()
@@ -153,5 +154,5 @@ class PneumoniaTrainer:
 
 
 if __name__ == "__main__":
-    trainer = PneumoniaTrainer(sys.argv[1], 300)
+    trainer = PneumoniaTrainer(sys.argv[1], 250)
     trainer.train()
