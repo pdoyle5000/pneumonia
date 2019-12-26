@@ -41,8 +41,7 @@ class SimpleNet(nn.Module):
         self.dense = nn.Linear(256, num_classes)
 
     def forward(self, x):
-        out = self.conv0(x)
-        out = self.conv1(out)
+        out = self.conv1(x)
         out = self.conv2(out)
         out = self.conv3(out)
         out = self.conv4(out)
