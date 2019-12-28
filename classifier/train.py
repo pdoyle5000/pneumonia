@@ -154,5 +154,5 @@ class PneumoniaTrainer:
 
 
 if __name__ == "__main__":
-    trainer = PneumoniaTrainer(sys.argv[1], 250)
+    trainer = PneumoniaTrainer(sys.argv[1], 300)
     trainer.train()
