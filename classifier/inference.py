@@ -25,4 +25,6 @@ class PneumoniaClassifier:
             image = composer(inputs)
             output = self.model(image.float().unsqueeze(0))
             sigmoid = torch.nn.Sigmoid()
-            return float(sigmoid(output.detach().squeeze(1)))
+            # most CNNs return lists, wrapping this in a list to conform
+            # to analysis APIs later on.
+            return [float(sigmoid(output.detach().squeeze(1)))]
