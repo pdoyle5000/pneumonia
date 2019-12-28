@@ -1,4 +1,5 @@
 import torch
+from typing import List
 from PIL.JpegImagePlugin import JpegImageFile
 from PIL.ImageStat import Stat
 import numpy as np
@@ -11,12 +12,12 @@ class PneumoniaClassifier:
         self.model = self._load_model(model_path)
         self.model.eval()
 
-    def _load_model(self, model_path: str):
+    def _load_model(self, model_path: str) -> SimpleNet:
         model = SimpleNet(1)
         model.load_state_dict(torch.load(model_path))
         return model
 
-    def predict(self, inputs: JpegImageFile) -> float:
+    def predict(self, inputs: JpegImageFile) -> List[float]:
         stats = Stat(inputs)
         composer = inference_composer(
             (256, 256), np.divide(stats.stddev, 255), np.divide(stats.mean, 255)
@@ -27,4 +28,4 @@ class PneumoniaClassifier:
             sigmoid = torch.nn.Sigmoid()
             # most CNNs return lists, wrapping this in a list to conform
             # to analysis APIs later on.
-            return [float(sigmoid(output.detach().squeeze(1)))]
+        return [float(sigmoid(output.detach().squeeze(1)))]
